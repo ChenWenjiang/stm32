@@ -31,9 +31,6 @@ void GPIO_Config(void)
 
 void RCC_Config(void)
 {
-  //  RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1 |    //
-  //  RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO,ENABLE);
- 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB
                      |RCC_APB2Periph_GPIOA |RCC_APB2Periph_GPIOC
           |RCC_APB2Periph_AFIO,ENABLE);
@@ -74,15 +71,11 @@ void TIM2_Config(void)
     
     TIM_ClearITPendingBit(TIM2,TIM_IT_Update);
 
-//    TIM_DeInit(TIM4);
-//    TIM_InternalClockConfig(TIM4);
     TIM_TimeBaseStructure.TIM_ClockDivision = 0;
     TIM_TimeBaseStructure.TIM_Prescaler = 3600-1; //20k
     TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
     TIM_TimeBaseStructure.TIM_Period = 20;
     TIM_TimeBaseInit(TIM2,&TIM_TimeBaseStructure);
-//    TIM_ClearFlag(TIM2,TIM_FLAG_Update);
-//    TIM_ARRPreloadConfig(TIM4,ENABLE);
     TIM_ITConfig(TIM2,TIM_IT_Update,ENABLE);
     TIM_Cmd(TIM2,ENABLE);
 }
@@ -91,20 +84,15 @@ void TIM4_Config(void)
 
     TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
     
-//    TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
-
-//    TIM_DeInit(TIM4);
-//    TIM_InternalClockConfig(TIM4);
     TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     TIM_TimeBaseStructure.TIM_Prescaler = 3600-1; //2k
     TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
     TIM_TimeBaseStructure.TIM_Period = 200;
     TIM_TimeBaseInit(TIM4,&TIM_TimeBaseStructure);
     TIM_ClearFlag(TIM4,TIM_FLAG_Update);
-//    TIM_ARRPreloadConfig(TIM4,ENABLE);
     TIM_ITConfig(TIM4,TIM_IT_Update,ENABLE);
 }
-
+/*
 extern int gI2cNBytes;
 extern int gI2cTransFlag;
 extern int gI2cAddr;
@@ -150,7 +138,7 @@ int eeprom_write(unsigned char page,unsigned char addr,int length)
     if(gI2cErr!=0)
         return gI2cErr;
     return 0;
-}
+}*/
 int main(void)
 {
     SystemInit();
@@ -158,9 +146,7 @@ int main(void)
     GPIO_Config();
     TIM2_Config();
     NVIC_Config();
-   
-
-
+    while(1);
     return 0;
 }
 
