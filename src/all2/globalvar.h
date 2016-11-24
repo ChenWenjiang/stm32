@@ -13,7 +13,7 @@ extern BUF rxBuf;
 extern BUF txBuf;
 
 extern INPUT gMap[INPUTNUM];
-
+extern uint8_t gButtonInputFlag;
 //led
 extern uint32_t gLight;    //0:dark 1:light
 extern uint32_t gTwink;    //0:stable 1:twink

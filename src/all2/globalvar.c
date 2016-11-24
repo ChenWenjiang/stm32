@@ -8,7 +8,8 @@ STATE gState = SNORMAL;
 BUF rxBuf;
 BUF txBuf;
 
-INPUT gMap[INPUTNUM];
+INPUT gMap[SIGLEDNUM];
+uint8_t gButtonInputFlag;
 
 //led
 uint32_t gLight = 0;    //0:dark 1:light

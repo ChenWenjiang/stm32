@@ -14,7 +14,7 @@ extern modreg_t regs[74];
 //extern uint32_t gInput;
 extern uint32_t gTwink;
 extern uint8_t gPwr;
-static uint32_t inCnt[32]={0};
+static uint32_t inCnt[INPUTNUM]={0};
 
 static int shiftCnt = 0;
 static int twinkCnt = 0;
@@ -55,7 +55,7 @@ void TIM3_IRQHandler(void)
     uint16_t iData = 0;
     TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
     //input alarm check
-    for(i=0;i<INPUTNUM;i++)
+    for(i=0;i<SIGLEDNUM;i++)
     {
         if(GPIO_ReadInputDataBit(gInput[i].addr,
                     gInput[i].loc) ==Bit_RESET)
@@ -79,6 +79,25 @@ void TIM3_IRQHandler(void)
     else
         regs[3].val = 0;
 
+    for(i=ALARMNUM;i<INPUTNUM;i++)
+    {
+        if(GPIO_ReadInputDataBit(gInput[i].addr,gInput[i].loc)==Bit_RESET)
+            inCnt[i]++;
+        else
+            inCnt[i] = 0;
+        if(inCnt[i]>=CNTTIMERS)
+            gButtonInputFlag |= (1<<i);
+        else
+            gButtonInputFlag &= (~(1<<i));
+    }   
+}
+
+//TODO
+void TIM5_IRQHandler(void)  
+{  
+    uint8_t i = 0;
+    uint16_t iData = 0;
+    TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
     //led 
     shiftCnt = (shiftCnt+1)%68; //34 leds
     //clock
