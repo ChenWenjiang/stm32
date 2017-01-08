@@ -4,7 +4,6 @@
 #include "stm32f10x_gpio.h"  
 #include "stm32f10x_tim.h" 
 #include "stm32f10x_usart.h"
-#include "globalvar.h"
 
 unsigned char buf[128];
 int ptr=0;
@@ -21,116 +20,28 @@ void USART1_IRQHandler(void)
         USART_ReceiveData(USART1);
     }
 }
-//1ms定时器，如果连续采样低电平50次，
-//则认为已经按下按键。
-void TIM3_IRQHandler(void)  
-{  
-    const uint8_t CNTTIMES = 25;
-    static uint8_t inCnt[INPUTNUM] = {0};
-    uint8_t i = 0;
-    if(TIM_GetITStatus(TIM3,TIM_IT_Update)!=RESET){
- //input alarm check
-        for(i=0;i<ALARMNUM;i++)
-        {
-            if(GPIO_ReadInputDataBit(gMap[i].addr,
-                        gMap[i].loc) ==Bit_RESET)
-                inCnt[i]++;
-            else
-                inCnt[i]=0;
-
-            if(inCnt[i]>=CNTTIMES)
-            {
-                regs[i+6].val = 1;
-                regs[5].val |= (1<<i);
-            }
-            else
-            {
-                regs[i+6].val = 0;
-                regs[5].val &= (~(1<<i));
-            }
-        }
-        if(regs[5].val!=0)
-            regs[3].val = 1;
-        else
-            regs[3].val = 0;
-//button input
-        for(i=ALARMNUM;i<INPUTNUM;i++)
-        {
-            if(GPIO_ReadInputDataBit(gMap[i].addr,gMap[i].loc)==Bit_RESET)
-                inCnt[i]++;
-            else
-                inCnt[i] = 0;
-            if(inCnt[i]>=CNTTIMES)
-                gButtonInputFlag |= (1<<(i-ALARMNUM));
-            else
-                gButtonInputFlag &= (~(1<<(i-ALARMNUM)));
-        } 
-        
-        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-    }
-}
-
 //1s定时，芯片正在运行的指示灯，闪烁表示正在运行，不闪烁表示有问题，程序没有运行
-volatile static int8_t outputLock;
-static uint32_t output1;//低16位
-static uint32_t output2;//高16位
-static void conv(uint32_t out,uint32_t color){
-    int i = 0;
-    output1 = 0;
-    output2 = 0;
-    for(i=0;i<16;i++){//低16位
-        if(out&(1<<i)){
-            if(color&(1<<i))//red
-                output1 +=(1<<(i<<1)); 
-            else   //yellow
-                output1 +=(2<<(i<<1));
-        }
-    }
-    for(i=0;i<16;i++){//高16位
-        if(out&(1<<(i+16))){
-            if(color&(1<<(16+i)))//red
-                output2 +=(1<<(i<<1));
-            else 
-                output2 +=(2<<(i<<1));
-        }
-    }
-/*    int i = 0;
-    output = 0;
-    for(i=0;i<32;i++){
-        if(out&(1<<i)){
-            if(color&(1<<i))//red
-                output += (1<<(i<<1));
-            else
-                output += (2<<(i<<1));
-        }
-    }*/
-}
+uint8_t gLedFlag;
+uint32_t gOutput1;
+uint32_t gOutput2;
+uint8_t gPwr;
 void TIM4_IRQHandler(void){
-    static uint32_t out = 0;
-    static uint8_t twinkFlag = 0;
     if(TIM_GetITStatus(TIM4,TIM_IT_Update)!=RESET){
-        if(GPIO_ReadInputDataBit(GPIOD,GPIO_Pin_2)!=Bit_RESET){
+        TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
+        if(GPIO_ReadInputDataBit(GPIOD,GPIO_Pin_2)){
             GPIO_ResetBits(GPIOD,GPIO_Pin_2);
         }else{
             GPIO_SetBits(GPIOD,GPIO_Pin_2);
         }
-        if(outputLock==0){
-            twinkFlag++;
-            twinkFlag %= 2;
-            if(twinkFlag==0){
-               /* if(gLight==0)
-                    gLight = 0x80000000;
-                else
-                    gLight >>=1;*/
-                gLight = regs[5].val;
-                gTwink = gLight;
-                out = gLight;
-            }else
-                out =gTwink ^ gLight; 
-            conv(out,gColor);
-            outputLock = 1;
+        if(gLedFlag==0){
+            //gOutput2 = 0xaaaaaaaa;
+            //gOutput1 = 0xaaaaaaaa;
+            //gPwr = 0xaa;
+            gOutput2 = 0x55555555;
+            gOutput1 = 0x55555555;
+            gPwr = 0x55;
+            gLedFlag = 1;
         }
-        TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
     }
 }
 //1ms定时，将LED状态输:出。
@@ -142,53 +53,44 @@ void TIM4_IRQHandler(void){
 #define SETLATCH         GPIO_SetBits(GPIOE,GPIO_Pin_1)
 #define RESETLATCH       GPIO_ResetBits(GPIOE,GPIO_Pin_1)
 
-void TIM5_IRQHandler(void){
-    
 static uint8_t cnt = 0; //整体计数，0～72，用来控制数据信号
-static uint8_t icnt = 1; //内部计数，0～1，用来控制时钟和锁存信号
-    
-    uint8_t pwr = 0x4;
+static uint8_t icnt = 0; //内部计数，0～1，用来控制时钟和锁存信号
+void TIM5_IRQHandler(void){
     if(TIM_GetITStatus(TIM5,TIM_IT_Update)!=RESET){
-        if(outputLock){
+        TIM_ClearITPendingBit(TIM5,TIM_IT_Update);//清中断
+        if(gLedFlag){
             if(icnt){   //时钟下降沿,锁存上升沿,数据移位
-                if(cnt==68){
+                if(cnt==71){
                     SETLATCH;
                 }else{
                     RESETLATCH;
-                    if(cnt<4){
-                        if(pwr&(1<<(cnt)))
+                    if(cnt<32){
+                        if(gOutput1&(1<<cnt))
                             SETSHIFTDAT;
                         else
                             RESETSHIFTDAT;
-                    }else if(cnt<36){
-                        if(output2 & (1<<(35-cnt)))
+                    }else if(cnt<64){
+                        if(gOutput2&(1<<(cnt-32)))
                             SETSHIFTDAT;
                         else
                             RESETSHIFTDAT;
                     }else{
-                        if(output1 & (1<<(67-cnt)))
-                            SETSHIFTDAT;
-                        else
-                            RESETSHIFTDAT;       
-                    }   
-              /*      }else{
-                        if((output>>(cnt-4)) & 1)
+                        if(gPwr&(1<<(cnt-64)))
                             SETSHIFTDAT;
                         else
                             RESETSHIFTDAT;
-                    }*/
+                    }   
                 }
                 RESETSHIFTCLK;
-                if(cnt==69){
+                if(cnt==72){
                     cnt=0;
-                }else{
+                    gLedFlag = 0;
+                }else
                     cnt++;
-                }
                 icnt = 0;
             }else{        //时钟上升沿,锁存下降沿
-                if(cnt==69){
+                if(cnt==72){
                     RESETSHIFTCLK;
-                    outputLock = 0;
                 }else{
                     SETSHIFTCLK;
                 }
@@ -196,9 +98,68 @@ static uint8_t icnt = 1; //内部计数，0～1，用来控制时钟和锁存信
                 icnt=1;
             }
         }
-       TIM_ClearITPendingBit(TIM5,TIM_IT_Update);//清中断
     }
 }
+/*
+void TIM5_IRQHandler(void)  
+{  
+    uint8_t i = 0;
+    uint16_t iData = 0;
+    TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
+    //led 
+    shiftCnt = (shiftCnt+1)%68; //34 leds
+    //clock
+    if((shiftCnt%2)==1)  //odd
+        SETSHIFTCLK;
+    else  //even
+    {
+        //clock
+        RESETSHIFTCLK;
+        //ds
+        if(shiftCnt<=62)
+        {
+            if(output & (1<<(shiftCnt/2)))
+                //GPIO_SetBits(,);  //high
+                SETSHIFTDAT;
+            else
+                RESETSHIFTDAT;
+                //GPIO_ResetBits(,);  //low
+        }
+        else if(shiftCnt==64)
+        {
+            if(gPwr & 0x01)
+                SETSHIFTDAT;
+                //GPIO_SetBits(,);
+            else
+                RESETSHIFTDAT;
+                //GPIO_ResetBits(,);
+
+        }
+        else if(shiftCnt==66)
+        {
+            if(gPwr & 0x02)
+                SETSHIFTDAT;
+            //    GPIO_SetBits(,);
+            else
+                RESETSHIFTDAT;
+               // GPIO_ResetBits(,);
+        }
+    }
+    //lock the value to set led
+    if(shiftCnt==0)
+        GPIO_SetBits(GPIOE,GPIO_Pin_1);//high
+    if(shiftCnt==1)
+        GPIO_ResetBits(GPIOE,GPIO_Pin_1);//low
+
+    // rx count,if rxbuf's size don't change,then receive a frame
+    if(rxBuff.size!=0 && rxsize == rxBuff.size)
+        gRxCnt++;
+    else
+        gRxCnt = 0;
+    rxsize = rxBuff.size;
+}    
+
+*/
 /*
 #define SETSCL      GPIO_SetBits(GPIOA,GPIO_Pin_1)
 #define RESETSCL    GPIO_ResetBits(GPIOA,GPIO_Pin_1)

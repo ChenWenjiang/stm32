@@ -139,6 +139,10 @@ void inputInit(void)
     gInput[31].addr = GPIOA;
     gInput[31].loc = GPIO_Pin_0;
     gInput[31].ledloc = 0;
+    
+    gInput[31].addr = GPIOA;
+    gInput[31].loc = GPIO_Pin_0;
+    gInput[31].ledloc = 0;
 }
 
 void ledInit(void)
