@@ -177,12 +177,12 @@ void USART1_IRQHandler(void)
         }
     }
 }
-/*
+
 #define SETSCL      GPIO_SetBits(GPIOA,GPIO_Pin_1)
 #define RESETSCL    GPIO_ResetBits(GPIOA,GPIO_Pin_1)
 #define SETSDA      GPIO_SetBits(GPIOA,GPIO_Pin_2)
 #define RESETSDA    GPIO_ResetBits(GPIOA,GPIO_Pin_2)
-void TIM4_IRQHandler(void)
+void TIM6_IRQHandler(void)
 {
     static int i2cCnt = 0;
     static int i2cByteCnt = 0;
@@ -395,4 +395,4 @@ void TIM4_IRQHandler(void)
         }
         i2cCnt++;
     }
-}*/
+}

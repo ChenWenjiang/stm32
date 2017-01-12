@@ -9,11 +9,9 @@ OBJS+=startup.o
 #	  ARC_IWDG.o ARC_LED.o ARC_NVIC_API.o \
 #	  ARC_RCC.o ARC_SysTick.o \
 #	  ARC_TIM_PWM.o ARC_USART.o
-OBJS+=main.o stm32f10x_it.o globalvar.o led.o\
-#	  ARC_LED.o ARC_I2C.o ARC_EEPROM.o ARC_RCC.o \
-#	  ARC_USART.o \
-#	  ARC_SysTick.o ARC_NVIC_API.o ARC_RTC.o ARC_GPIO.o \
-#	  ARC_Retarget.o SysCalls.o
+#OBJS+=main.o stm32f10x_it.o globalvar.o led.o \
+#	  print.o gpio_i2c.o
+OBJS+=main.o gpio_i2c.o
 all:src
 
 src:app.a
