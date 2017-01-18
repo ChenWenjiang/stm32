@@ -11,7 +11,10 @@ OBJS+=startup.o
 #	  ARC_TIM_PWM.o ARC_USART.o
 #OBJS+=main.o stm32f10x_it.o globalvar.o led.o \
 #	  print.o gpio_i2c.o
-OBJS+=main.o gpio_i2c.o
+OBJS+=main.o gpioi2c_config.o stm32f10x_it.o rs485_config.o \
+	  alarm_input_config.o led_output_config.o other_hw_config.o \
+	  hw_config.o run_led_config.o globalvar.o ringbuf.o led.o \
+	  eeprom.o 
 all:src
 
 src:app.a
