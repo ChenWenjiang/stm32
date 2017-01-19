@@ -28,6 +28,7 @@ volatile uint8_t gDoubleButtonReleaseFlag = 0;
 //BIT 10:MEM_IN  0x0400
 INPUT gMap[INPUTNUM];
 uint32_t gSetCnt;
+uint32_t gInputFlag;
 uint32_t gInputReleaseFlag;
 //led
 volatile uint32_t gLight = 0;    //0:dark 1:light

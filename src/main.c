@@ -12,7 +12,7 @@ extern uint8_t icnt; //内部计数，0～1，用来控制时钟和锁存信号
 extern int8_t outputLock;
 extern uint32_t output1;
 extern uint32_t output2;
-
+void timer3(void);
 void conv(uint32_t out,uint32_t color){
     int i = 0;
     output1 = 0;
@@ -36,8 +36,11 @@ void conv(uint32_t out,uint32_t color){
 }
 
 void printHistoryNum(void){
-    uint8_t ch = '0'+gHistoryNum;
-    print(&ch,1);
+    uint8_t ch[3] = {0}; 
+    ch[0]=  '0'+gHistoryNum/100;
+    ch[1] = '0'+(gHistoryNum/10)%10;
+    ch[2] = '0'+gHistoryNum%10;
+    print(ch,3);
 }
 
 int main()
@@ -59,7 +62,7 @@ int main()
         errchar += err;
         print(&errchar,1);
     }
-    gColor = 0;
+    gColor = 0xffff0000;
     err = eeprom_store_color();
     if(err!=0){
         errchar += err;
@@ -69,7 +72,7 @@ int main()
         static uint8_t twinkFlag = 0;
         uint32_t out = 0;
         uint32_t color = 0;
-//        time3();
+        timer3();
         if(outputLock==0){
             twinkFlag++;
             twinkFlag %= 2;
@@ -78,9 +81,9 @@ int main()
                gLight = 0x80000000;
                else
                gLight >>=1;*/
-        //    if(inputLock==0)
-        //        gLight = gButtonInputFlag;//regs[5].val;
-            //    gTwink = 0;
+           // if(inputLock==0)
+           //     gLight = gButtonInputFlag;//regs[5].val;
+           //     gTwink = 0;
                 out = gLight;
             }else
                 out =gTwink ^ gLight;

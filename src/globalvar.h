@@ -18,6 +18,7 @@ extern uint8_t gDoubleButtonReleaseFlag;
 extern uint8_t gDoubleButtonFlag;
 extern INPUT gMap[INPUTNUM];
 extern uint32_t gSetCnt;
+extern uint32_t gInputFlag;
 extern uint32_t gInputReleaseFlag;
 //led
 extern volatile  uint32_t gLight;    //0:dark 1:light

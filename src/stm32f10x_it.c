@@ -57,15 +57,16 @@ void USART3_IRQHandler(void)
 //1ms定时器，如果连续采样低电平50次，
 //则认为已经按下按键。
 uint8_t inputLock = 0;
-void TIM3_IRQHandler(void)  
+//void TIM3_IRQHandler(void)  
+void timer3(void)
 {  
-    const uint8_t CNTTIMES = 50;
+    const uint8_t CNTTIMES = 20;
     static uint8_t inCnt[INPUTNUM] = {0};
-    static uint8_t releaseCnt[INPUTNUM] = {0};
+   // static uint8_t releaseCnt[INPUTNUM] = {0};
     static uint16_t clearMemCnt = 0;
     static uint16_t setCnt = 0;
     uint8_t i = 0;
-    if(TIM_GetITStatus(TIM3,TIM_IT_Update)!=RESET){
+//    if(TIM_GetITStatus(TIM3,TIM_IT_Update)!=RESET){
  //input alarm check
         inputLock = 1;
         for(i=0;i<ALARMNUM;i++)
@@ -82,17 +83,23 @@ void TIM3_IRQHandler(void)
             {
                 regs[i+6].val = 1;
                 regs[5].val |= (1<<i);
-                gHistory[gHistoryPointer] = i;
-                if(gColor & (1<<i))
-                    gHistory[gHistoryPointer] +=32;
-                gHistoryPointer = (gHistoryPointer+1)%256;
-                if(gHistoryNum<256)
-                    gHistoryNum++;
+                gInputFlag |= (1<<i);
+                gInputReleaseFlag &=(~(1<<i));
+        //        gHistory[gHistoryPointer] = i;
+        //        if(gColor & (1<<i))
+        //            gHistory[gHistoryPointer] +=32;
+        //        gHistoryPointer = (gHistoryPointer+1)%256;
+        //        if(gHistoryNum<256)
+        //            gHistoryNum++;
             }
             else
             {
                 regs[i+6].val = 0;
                 regs[5].val &= (~(1<<i));
+                if(inCnt[i]==0)
+                    gInputReleaseFlag |= (1<<i);
+                else
+                    gInputReleaseFlag &=(~(1<<i));
             }
         }
         if(regs[5].val!=0)
@@ -109,42 +116,56 @@ void TIM3_IRQHandler(void)
                 if(inCnt[i]>0)
                     inCnt[i]--;
             }
-            if(inCnt[i]>=CNTTIMES-10){
+            if(inCnt[i]>=CNTTIMES-5){
                 gButtonInputFlag |= (1<<(i-ALARMNUM));
+                gButtonReleaseFlag &= (~(1<<(i-ALARMNUM)));
             }
+            else if(inCnt[i]>0)
+                gButtonReleaseFlag &= (~(1<<(i-ALARMNUM)));
             else
-                gButtonInputFlag &= (~(1<<(i-ALARMNUM)));
-        } 
+                gButtonReleaseFlag |= (1<<(i-ALARMNUM));
+ 
+        }
         if(((gButtonInputFlag&0x0a)==0x0a)||
                 ((gButtonInputFlag&0x0300)==0x0300)){
-            if(clearMemCnt <4000)
+            if(clearMemCnt <400)
                 clearMemCnt++;
         }
-        else{
-            if(clearMemCnt>0)
-                clearMemCnt--;
-        }
-        if((gButtonInputFlag&0x05)==0x05){
-            if(clearMemCnt <4000)
+        else if(clearMemCnt>20)
+            clearMemCnt-=20;
+        else
+            clearMemCnt = 0;
+
+        if((gButtonInputFlag&0x0050)==0x0050){
+            if(setCnt <40)
                 setCnt++;
         }
-        else{
-            if(clearMemCnt>0)
-                setCnt--;
-        }
+        else if(setCnt>5)
+            setCnt-=5;
+        else
+            setCnt = 0;
 //ent mov
-        if(setCnt>100)
+        if(setCnt>35){
             gDoubleButtonFlag |= 2;
+            gDoubleButtonReleaseFlag &=0xfd;
+        }
+        else if(setCnt>0)
+            gDoubleButtonReleaseFlag &=0xfd;
         else
-            gDoubleButtonFlag &= 0xfd;
+            gDoubleButtonReleaseFlag |=2;
+     
+          //  gDoubleButtonFlag &= 0xfd;
 //rst mem
-        if(clearMemCnt>2500)
+        if(clearMemCnt>300){
             gDoubleButtonFlag |= 1;
+            gDoubleButtonReleaseFlag &=0xfe;
+        }else if(clearMemCnt>0)
+            gDoubleButtonReleaseFlag &=0xfe;
         else
-            gDoubleButtonFlag &=0xfe;
+            gDoubleButtonReleaseFlag |= 1;
         inputLock = 0;
-        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-    }
+  //      TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
+  //  }
 }
 
 //1s定时，芯片正在运行的指示灯，闪烁表示正在运行，不闪烁表示有问题，程序没有运行

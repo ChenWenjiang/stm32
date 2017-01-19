@@ -186,78 +186,154 @@ void setState(void)
 {
     static uint8_t mem = 0;
     static uint8_t mem_cnt = 0;
-    uint32_t tmp = regs[5].val;
+
+    uint32_t inputFlag = gInputFlag;
+    uint32_t inputReleaseFlag = gInputReleaseFlag;
+    uint32_t inputDetected = inputFlag & inputReleaseFlag;
+
     uint16_t buttonInputFlag = gButtonInputFlag;
+    uint16_t buttonReleaseFlag = gButtonReleaseFlag;
+    uint16_t buttonDetected = buttonInputFlag & buttonReleaseFlag;
+
     uint8_t doubleButtonFlag = gDoubleButtonFlag;
-    if(tmp){
+    uint8_t doubleButtonReleaseFlag = gDoubleButtonReleaseFlag;
+    uint8_t doubleButtonDetected = doubleButtonFlag & doubleButtonReleaseFlag;
+
+    if(inputFlag){  //alarm
         if((gState==SACK)||(gState==SALARM)){
-            gLight |= tmp;
-            gTwink |= tmp;
+            gLight |= inputFlag;
+            gTwink |= inputFlag;
         }else{
-            gLight = tmp;
-            gTwink = tmp;
+            gLight = inputFlag;
+            gTwink = inputFlag;
         }
         gState = SALARM;
-        eeprom_store_history();
-    }else if(buttonInputFlag & 0x0102){  //rst
+        if(inputDetected){
+            int i = 0;
+            for(;i<32;i++){
+                if(inputDetected & (1<<i)){
+                    if(gColor & (1<<i))
+                        gHistory[gHistoryPointer] = i+32;
+                    else
+                        gHistory[gHistoryPointer] = i;
+                    gHistoryPointer = (gHistoryPointer+1)%256;
+                    if(gHistoryNum<256)
+                        gHistoryNum++;
+                }
+            }
+            eeprom_store_history();
+            gInputReleaseFlag = 0;
+            gInputFlag = 0;
+        }
+    }else if(buttonDetected & 0x0102){  //rst
         gState = SNORMAL;
         gLight = 0;
         gTwink = 0;
-    }else if((gState == SALARM)&&(buttonInputFlag & 0x0081)){  //ack
+        gButtonInputFlag =0;//&=(~buttonDetected);
+        gButtonReleaseFlag =0;//&=(~buttonDetected);
+    }else if((gState == SALARM)&&(buttonDetected & 0x0081)){  //ack
         gState = SACK;
         gTwink = 0;
-    }else if(gState != SSET){
-        if(doubleButtonFlag & 1){//RST MEM
-            gState = SNORMAL;
+        gButtonInputFlag =0;//&=(~buttonDetected);
+        gButtonReleaseFlag =0;//&=(~buttonDetected);
+    }else if(gState == SNORMAL){
+        if(doubleButtonDetected & 1){//RST MEM
             gLight = 0;
             gTwink = 0;
             eeprom_clear_history();
-        }else if(doubleButtonFlag & 2){  //ENT MOV
+            gDoubleButtonFlag &=0xfe;
+            gDoubleButtonReleaseFlag &= 0xfe;
+            gButtonReleaseFlag &=(~buttonDetected);
+            gButtonInputFlag &=(~buttonDetected);
+        }else if(doubleButtonDetected & 2){  //ENT MOV
             gState = SSET;
             gLight = 1;
             gTwink = 1;
-        }else if(buttonInputFlag & 0x0204){ //test
+            gDoubleButtonReleaseFlag &=0xfd;
+            gDoubleButtonFlag &= 0xfd;
+            gButtonInputFlag &= (~buttonDetected);
+            gButtonReleaseFlag &= (~buttonDetected);
+        }else if(buttonDetected & 0x0204){ //test
             gState = STEST;
             gLight = 0xffffffff;
             gTwink = 0xffffffff;
-        }else if(buttonInputFlag & 0x0408){ //mem
-            if(gState!=SMEM){
-                gState = SMEM;
-                mem = gHistoryPointer;
-                mem_cnt = 0;
+            gButtonReleaseFlag &= (~buttonDetected);
+            gButtonInputFlag &= (~buttonDetected);
+        }else if(buttonDetected & 0x0408){ //mem
+            gState = SMEM;
+            if(gHistoryNum!=0){
+                mem_cnt = 1;
+                if(gHistoryPointer!=0)
+                    mem = gHistoryPointer-1;
+                else
+                    mem = 255;
             }
             if(gHistoryNum!=0){
                 gLight = 1<<(gHistory[mem]&0x1f);
                 gTwink = gLight;
                 memColor |= ((gHistory[mem]&0x20)?gLight:0);
                 if(mem_cnt==gHistoryNum){
-                    mem_cnt = 0;
-                    mem = gHistoryPointer;
+                    mem_cnt = 1;
+                    mem = gHistoryPointer-1;
+                }else{
+                    mem_cnt++;
+                    mem--;
                 }
-                mem--;
             }
+            gButtonInputFlag &= (~buttonDetected);
+            gButtonReleaseFlag &= (~buttonDetected);
+        }else if(buttonDetected){
+            gButtonInputFlag &= (~buttonDetected);
+            gButtonReleaseFlag &= (~buttonDetected);
+        }
+    }else if(gState ==SMEM){
+        if(buttonDetected & 0x0408){ //mem
+            if(gHistoryNum!=0){
+                gLight = 1<<(gHistory[mem]&0x1f);
+                gTwink = gLight;
+                memColor |= ((gHistory[mem]&0x20)?gLight:0);
+                if(mem_cnt==gHistoryNum){
+                    mem_cnt = 1;
+                    mem = gHistoryPointer-1;
+                }else{
+                    mem_cnt++;
+                    mem--;
+                }
+            }
+            gButtonInputFlag &= (~buttonDetected);
+            gButtonReleaseFlag &= (~buttonDetected);
         }
     }else if(gState==SSET){
-        if(buttonInputFlag & 0x10)//MOV
+        if(buttonDetected & 0x10)//MOV
         {
             if(gLight==0x80000000)
                 gLight = 1;
             else
                 gLight <<=1;
             gTwink = gLight;
-        }
-        else if(buttonInputFlag & 0x20)//ADD
+            gButtonReleaseFlag &= (~buttonDetected);
+            gButtonInputFlag &= (~buttonDetected);
+        }else if(buttonDetected & 0x20)//ADD
         {
             if(gColor & gLight)
                 gColor &= (~gLight);
             else
                 gColor |= gLight;
+             gButtonReleaseFlag &= (~buttonDetected);
+             gButtonInputFlag &= (~buttonDetected);
 
         }
-        else if(buttonInputFlag & 0x40)//ENT
+        else if(buttonDetected & 0x40)//ENT
         {
             gState = SNORMAL;
+            gLight = 0;
+            gTwink = 0;
             eeprom_store_color();
+            gButtonReleaseFlag &= (~buttonDetected);
+            gButtonInputFlag &= (~buttonDetected);
+        }else if(buttonDetected){
+            gButtonReleaseFlag &= (~buttonDetected);
+            gButtonInputFlag &= (~buttonDetected);
         }
     }
 }

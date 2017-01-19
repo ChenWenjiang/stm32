@@ -1,7 +1,7 @@
 #include "hw_config.h"
 
 static void JTAG_Disable(void){
-    GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
+    //GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
     GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable , ENABLE);
 }
 void HW_Config(void){
