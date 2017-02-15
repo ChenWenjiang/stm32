@@ -14,7 +14,7 @@ OBJS+=startup.o
 OBJS+=main.o gpioi2c_config.o stm32f10x_it.o rs485_config.o \
 	  alarm_input_config.o led_output_config.o other_hw_config.o \
 	  hw_config.o run_led_config.o globalvar.o ringbuf.o led.o \
-	  eeprom.o 
+	  eeprom.o rtu.o 
 all:src
 
 src:app.a

@@ -7,11 +7,31 @@
 #include "stm32f10x_i2c.h"
 #include "globalvar.h"
 #include "rs485_config.h"
+#include "rtu.h"
+#include "other_hw_config.h"
 
-uint8_t uart4_data[10] = "abcdefghi";
+static int timer2Cnt = 0;
+void TIM2_IRQHandler(void){
+    if(TIM_GetITStatus(TIM2,TIM_IT_Update)!=RESET){
+        if(timer2Cnt++>gTimeOut){
+            TIM_Cmd(TIM2,DISABLE);
+            if(rxBuf.tail <2)
+                exceptAns(0x03,0x12);
+            else
+                exceptAns(rxBuf.buf[1],0x12);
+            CLEARBUF(rxBuf);
+            print(txBuf.buf,txBuf.tail-txBuf.head);
+            CLEARBUF(txBuf);
+        }
+        TIM_ClearITPendingBit(TIM2,TIM_IT_Update);
+    }
+}
+
+//uint8_t uart4_data[10] = "abcdefghi";
+uint8_t ok = 0;
 void UART4_IRQHandler(void)
 {
-    static int i = 0;
+//    static int i = 0;
     if(RS485_CAN_NOT_RX){
         USART_ClearITPendingBit(UART4,USART_IT_RXNE);
         goto haha;
@@ -21,12 +41,25 @@ void UART4_IRQHandler(void)
     }
     if(USART_GetITStatus(UART4,USART_IT_RXNE)!=RESET)
     {
-            
-        uart4_data[i++] = USART_ReceiveData(UART4);
-        if(i==10){
-            i = 0;
-            RS485_TX_ENABLE;
+        PUTINTOBUF(rxBuf,USART_ReceiveData(UART4));    
+   //     uart4_data[i++] = USART_ReceiveData(UART4);
+        //if(i==10){
+        //    i = 0;
+        if(okToParse()){
+            TIM_Cmd(TIM2,DISABLE);
+            parse();
+            print(txBuf.buf,txBuf.tail-txBuf.head);
+            CLEARBUF(txBuf);
+        }else{
+            timer2Cnt = 0;
+            if(rxBuf.tail==1)
+                TIM_Cmd(TIM2,ENABLE);
         }
+    //    if(okToParse()){
+    //        print(txBuf.buf,txBuf.tail-txBuf.head);
+    //        CLEARBUF(txBuf);
+    //    }
+//            RS485_TX_ENABLE;
         USART_ClearITPendingBit(UART4,USART_IT_RXNE);
         //buf[ptr++]=USART_ReceiveData(USART3);
     }
@@ -81,10 +114,25 @@ void timer3(void)
             }
             if(inCnt[i]>=CNTTIMES-5)
             {
-                regs[i+6].val = 1;
-                regs[5].val |= (1<<i);
+                regs[i+7].val = 1;
+                regs[i+41].val = 1;
+                if(i<16){
+                    regs[5].val |= (1<<i);
+                    regs[39].val = regs[5].val;
+                }else{
+                    regs[6].val |= (1<<i);
+                    regs[40].val = regs[6].val;
+                }
                 gInputFlag |= (1<<i);
                 gInputReleaseFlag &=(~(1<<i));
+                if(gInputFlag & gColor){
+                    regs[3].val = 1;
+                    soundAlarm();
+                }
+                if(gInputFlag & (~gColor)){
+                    regs[4].val = 1;
+                    soundPreAlarm();
+                }
         //        gHistory[gHistoryPointer] = i;
         //        if(gColor & (1<<i))
         //            gHistory[gHistoryPointer] +=32;

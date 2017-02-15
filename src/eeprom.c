@@ -44,7 +44,8 @@ uint8_t  eeprom_load(void){
     gColor = tmp[1]+(tmp[2]<<8)+(tmp[3]<<16)+(tmp[4]<<24);
     gRS485Config = tmp[5];
     gModbusAddr = tmp[6];
-    gHistoryNum = tmp[7] + (tmp[8]<<8);
+    gHistoryNum = tmp[8];
+    gHistoryNum = tmp[7] + (gHistoryNum<<8);
     return 0;
 }
 
@@ -52,12 +53,12 @@ uint8_t  eeprom_store_color(void){
     return Write(0xa2,1,(uint8_t *)(&gColor),4);
 }
 
-uint8_t eeprom_store_rs485config(void){
-    return Single_Write(0xa2,5,gRS485Config);
+uint8_t eeprom_store_rs485config(uint8_t newConfig){
+    return Single_Write(0xa2,5,newConfig);
 }
 
-uint8_t eeprom_store_modbusaddr(void){
-    return Single_Write(0xa2,6,gModbusAddr);
+uint8_t eeprom_store_modbusaddr(uint8_t newAddr){
+    return Single_Write(0xa2,6,newAddr);
 }
 uint8_t eeprom_clear_history(void){
     int i = 0;

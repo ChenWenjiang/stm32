@@ -8,7 +8,14 @@
 #include "stm32f10x_tim.h"
 #include "misc.h"
 
+#define ALARM_PIN GPIO_Pin_12
+#define PRE_ALARM_PIN GPIO_Pin_0
 
 void Other_HW_Config(void);
+
+#define soundAlarm() GPIO_ResetBits(GPIOC,ALARM_PIN)
+#define soundPreAlarm() GPIO_ResetBits(GPIOD,PRE_ALARM_PIN)
+#define soundAlarmClose() GPIO_SetBits(GPIOC,ALARM_PIN)
+#define soundPreAlarmClose() GPIO_SetBits(GPIOD,PRE_ALARM_PIN) 
 
 #endif

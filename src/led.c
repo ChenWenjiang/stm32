@@ -4,6 +4,8 @@
 #include "globalvar.h"
 #include "eeprom.h"
 
+#include "other_hw_config.h"
+
 //uint8_t gSetCnt;
 
 void inputInit(void)
@@ -198,7 +200,6 @@ void setState(void)
     uint8_t doubleButtonFlag = gDoubleButtonFlag;
     uint8_t doubleButtonReleaseFlag = gDoubleButtonReleaseFlag;
     uint8_t doubleButtonDetected = doubleButtonFlag & doubleButtonReleaseFlag;
-
     if(inputFlag){  //alarm
         if((gState==SACK)||(gState==SALARM)){
             gLight |= inputFlag;
@@ -225,17 +226,47 @@ void setState(void)
             gInputReleaseFlag = 0;
             gInputFlag = 0;
         }
-    }else if(buttonDetected & 0x0102){  //rst
+        regs[73].val = 0;
+        regs[74].val = 0;
+        regs[75].val = 0;
+    }else if((buttonDetected & 0x0102) || regs[74].val){  //rst
+        int i = 0;
         gState = SNORMAL;
         gLight = 0;
         gTwink = 0;
         gButtonInputFlag =0;//&=(~buttonDetected);
         gButtonReleaseFlag =0;//&=(~buttonDetected);
-    }else if((gState == SALARM)&&(buttonDetected & 0x0081)){  //ack
+        gDoubleButtonReleaseFlag = 0;
+        gDoubleButtonFlag = 0;
+        for(i=0;i<34;i++){
+            regs[5+i].val = 0;
+            regs[39+i].val = 0;
+        }
+        regs[73].val = 0;
+        regs[74].val = 0;
+        regs[75].val = 0;
+        regs[3].val = 0;
+        regs[4].val = 0;
+        soundAlarmClose();
+        soundPreAlarmClose();
+    }else if((gState == SALARM)
+            &&((buttonDetected & 0x0081)||(regs[73].val))){  //ack
+        int i = 0;
         gState = SACK;
         gTwink = 0;
         gButtonInputFlag =0;//&=(~buttonDetected);
         gButtonReleaseFlag =0;//&=(~buttonDetected);
+        for(i=0;i<34;i++){
+            regs[5+i].val = 0;
+            regs[39+i].val = 0;
+        }
+        regs[73].val = 0;
+        regs[74].val = 0;
+        regs[75].val = 0;
+        regs[3].val = 0;
+        regs[4].val = 0;
+        soundAlarmClose();
+        soundPreAlarmClose();
     }else if(gState == SNORMAL){
         if(doubleButtonDetected & 1){//RST MEM
             gLight = 0;
@@ -253,12 +284,15 @@ void setState(void)
             gDoubleButtonFlag &= 0xfd;
             gButtonInputFlag &= (~buttonDetected);
             gButtonReleaseFlag &= (~buttonDetected);
-        }else if(buttonDetected & 0x0204){ //test
+        }else if((buttonDetected & 0x0204)||(regs[75].val)){ //test
             gState = STEST;
             gLight = 0xffffffff;
             gTwink = 0xffffffff;
             gButtonReleaseFlag &= (~buttonDetected);
             gButtonInputFlag &= (~buttonDetected);
+            regs[73].val = 0;
+            regs[74].val = 0;
+            regs[75].val = 0;
         }else if(buttonDetected & 0x0408){ //mem
             gState = SMEM;
             if(gHistoryNum!=0){

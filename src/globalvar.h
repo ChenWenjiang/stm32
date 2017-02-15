@@ -3,10 +3,9 @@
 
 #include "ringbuf.h"
 #include "types.h"
-#include "reg.h"
 #include "led.h"
 
-extern modreg_t regs[74];
+extern modreg_t regs[76];
 extern STATE gState ;
 
 extern BUF rxBuf;
@@ -38,5 +37,5 @@ extern uint8_t gModbusAddr;
 
 //ringbuf
 extern BUF ringBuf;
-
+extern int gTimeOut;
 #endif

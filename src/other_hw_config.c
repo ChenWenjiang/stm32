@@ -1,6 +1,21 @@
 #include "other_hw_config.h"
 
+
+static void Sound_GPIO_Config(void){
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Init(GPIOD,&GPIO_InitStructure);
+    
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+    GPIO_Init(GPIOC,&GPIO_InitStructure);
+}
+static void Sound_RCC_Config(void){
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC|RCC_APB2Periph_GPIOD,ENABLE);
+}
 static void USART3_GPIO_Config(void){
+
 }
 static void USART3_RCC_Config(void){
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,ENABLE);
@@ -36,4 +51,8 @@ void Other_HW_Config(void){
     USART3_GPIO_Config();
     USART3_Config();
     USART3_NVIC_Config();
+    Sound_RCC_Config();
+    Sound_GPIO_Config();
+    soundAlarmClose();
+    soundPreAlarmClose();
 }

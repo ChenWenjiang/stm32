@@ -3,8 +3,7 @@ extern "C"{
 #endif
 #include "led.h"
 #include "types.h"
-#include "reg.h"
-volatile modreg_t regs[74];
+volatile modreg_t regs[76];
 STATE gState = SNORMAL;
 
 BUF rxBuf;
@@ -42,11 +41,12 @@ volatile uint8_t gHistoryPointer = 0;
 volatile uint8_t gHistoryPointer_backup = 0;
 volatile uint8_t gHistory[256] = {0};
 
-uint8_t gRS485Config = 0;
-uint8_t gModbusAddr = 0;
+uint8_t gRS485Config = 0;//高4位为波特率,低4位为其他配置
+//uint8_t gModbusAddr = 0;
 //ringbuf
 BUF ringBuf;
-
+//RTU time out
+int gTimeOut = 40000;
 #if defined(__cplusplus)||defined(c_plusplus)
 }
 #endif

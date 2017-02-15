@@ -2,6 +2,7 @@
 #include "globalvar.h"
 #include "led.h"
 #include "eeprom.h"
+#include "rtu.h"
 extern uint32_t memColor;
 
 
@@ -41,8 +42,10 @@ void printHistoryNum(void){
     ch[1] = '0'+(gHistoryNum/10)%10;
     ch[2] = '0'+gHistoryNum%10;
     print(ch,3);
+    ch[0] = '\n';
+    ch[1] = '\r';
+    print(ch,2);
 }
-
 int main()
 {
 //    uint8_t edata[26]={'a','b','c','d','e','f','g','h','i','j','k','l','m',
@@ -51,13 +54,16 @@ int main()
     uint8_t errchar = '0';
     uint8_t err = 0;
     inputInit();
+
     HW_Config();
+    RS485_RX_ENABLE;
+    err = eeprom_store_modbusaddr(0xc);
 //    err = eeprom_clear_history();
     if(err!=0){
         errchar += err;
         print(&errchar,1);
     }
- //   err = eeprom_load();
+    err = eeprom_load();
     if(err!=0){
         errchar += err;
         print(&errchar,1);
@@ -89,6 +95,8 @@ int main()
                 out =gTwink ^ gLight;
             if(gState==SMEM)
                 color = memColor;
+            else if(gState==STEST)
+                color = 0;
             else
                 color = gColor;
             conv(out,color);
@@ -109,6 +117,13 @@ int main()
  //       }
  //       print(edatain,26);
         setState();
+        new_config_from_rtu();
+   //     if(ok){
+   //         print(rxBuf.buf,rxBuf.tail-rxBuf.head);
+   //         parse();
+   //         print(txBuf.buf,txBuf.tail-txBuf.head);
+   //         ok = 0;
+   //     }
         printHistoryNum();
     //    setState();
     //    uint8_t t = Single_Read(0xa0,0,uart4_data);
