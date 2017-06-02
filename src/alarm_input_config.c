@@ -20,7 +20,8 @@ static void Alarm_Input_GPIO_Config(void){
                           
     GPIO_InitStructure.GPIO_Pin = (gMap[3].loc)|(gMap[15].loc)|(gMap[16].loc)|
         (gMap[17].loc)|(gMap[18].loc)|(gMap[26].loc)|(gMap[27].loc)|
-        (gMap[ACK_IN].loc)|(gMap[RST_IN].loc);
+        (gMap[ACK_IN].loc)|(gMap[RST_IN].loc)
+        |(gMap[TEST].loc);//move TEST here
     GPIO_Init(GPIOC,&GPIO_InitStructure);
                                                         
     GPIO_InitStructure.GPIO_Pin = (gMap[4].loc)|(gMap[5].loc)|(gMap[6].loc)|
@@ -37,40 +38,40 @@ static void Alarm_Input_GPIO_Config(void){
     GPIO_InitStructure.GPIO_Pin = (gMap[ACK].loc)|(gMap[RST].loc);
     GPIO_Init(GPIOG,&GPIO_InitStructure);
                           
-    GPIO_InitStructure.GPIO_Pin = (gMap[TEST].loc)|(gMap[ENT].loc)
+    GPIO_InitStructure.GPIO_Pin = /*(gMap[TEST].loc)|*/(gMap[ENT].loc)
         |(gMap[MEM].loc)|(gMap[MOV].loc)|(gMap[ADD].loc)|/* button  input */
         (gMap[28].loc)|(gMap[29].loc)|(gMap[30].loc);//alarm input
     GPIO_Init(GPIOB,&GPIO_InitStructure);
 }
-//static void TIM3_Config(void){
-//    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-//         
-//    TIM_ClearITPendingBit(TIM3,TIM_IT_Update);
-//    TIM_TimeBaseStructure.TIM_Period = 20;    // 20K/20 = 1000
-//    TIM_TimeBaseStructure.TIM_Prescaler = 3600-1;   // 72M/3600 = 20K
-//    TIM_TimeBaseStructure.TIM_ClockDivision = 0x0;
-//    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-//    TIM_TimeBaseInit(TIM3,&TIM_TimeBaseStructure);
-//                                            
-//    TIM_ITConfig(TIM3, TIM_IT_Update,ENABLE);
-//    TIM_Cmd(TIM3,ENABLE);
-//}
-//static void TIM3_NVIC_Config(void){
-//    NVIC_InitTypeDef NVIC_InitStructure;
-//    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
-//
-//    NVIC_InitStructure.NVIC_IRQChannel = TIM3_IRQn;
-//    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-//    NVIC_InitStructure.NVIC_IRQChannelSubPriority  = 1;
-//    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-//    NVIC_Init(&NVIC_InitStructure);
-//}
+static void TIM3_Config(void){
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+         
+    TIM_ClearITPendingBit(TIM3,TIM_IT_Update);
+    TIM_TimeBaseStructure.TIM_Period = 40;    // 20K/20 = 1000
+    TIM_TimeBaseStructure.TIM_Prescaler = 3600-1;   // 72M/3600 = 20K
+    TIM_TimeBaseStructure.TIM_ClockDivision = 0x0;
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+    TIM_TimeBaseInit(TIM3,&TIM_TimeBaseStructure);
+                                            
+    TIM_ITConfig(TIM3, TIM_IT_Update,ENABLE);
+    TIM_Cmd(TIM3,ENABLE);
+}
+static void TIM3_NVIC_Config(void){
+    NVIC_InitTypeDef NVIC_InitStructure;
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+
+    NVIC_InitStructure.NVIC_IRQChannel = TIM3_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority  = 1;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
+}
 
 
 void Alarm_Input_Config(void){
     Alarm_Input_RCC_Config();
     Alarm_Input_GPIO_Config();
- //   TIM3_Config();
- //   TIM3_NVIC_Config();
+    TIM3_Config();
+    TIM3_NVIC_Config();
 }
 

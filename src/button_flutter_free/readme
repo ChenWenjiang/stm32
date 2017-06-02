@@ -1,1 +1,0 @@
-This project is used to test a new method to make the button input flutter-free(去抖动). I use a 1ms timer to detect the button input, if there is a valide input in the pin connected to the button, the static variable "cnt" plus 1, otherwise cnt is assigned to zero. If "cnt"'s value is equal to 50(50ms), I think the input in this pin is stable.

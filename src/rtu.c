@@ -84,15 +84,13 @@ void regsInit(uint8_t busaddr,uint8_t baudrate,uint8_t verification)
 void crc16(uint8_t data,uint16_t* crc)
 {
     uint8_t i=0;
-    while(i<8)
-    {
-        *crc ^= ((uint16_t)data);
-shift:  *crc >>=1;
-        if(*crc&0x0001)
-            *crc ^=0xa001;
-        else
-            goto shift;
-        i++;
+    *crc ^= ((uint16_t)data);
+    for(i=0;i<8;i++){
+      if(*crc&0x0001){
+        *crc >>=1;
+        *crc ^=0xa001;
+      }else
+        *crc >>=1;
     }
 }
 
@@ -164,6 +162,7 @@ int okToParse(void)
 void parse(void)
 {
     int i,j;
+    uint8_t mod_addr;
     uint8_t func;
     uint8_t highByte;
     uint8_t lowByte;
@@ -181,9 +180,8 @@ void parse(void)
 //        goto the_end;
     
     rxBuf.head = 0;
-    func = GETFROMBUF(rxBuf);
-    if(func!=MODBUSADDR)
-    {
+    mod_addr = GETFROMBUF(rxBuf);
+    if((mod_addr!=MODBUSADDR)&&(mod_addr!=0)){
         CLEARBUF(rxBuf);
      //   str[0] = 'a';
      //   print(str,1);
@@ -191,7 +189,7 @@ void parse(void)
      //   print(&func,1);
         goto the_end;
     }
-    crc16(func,&crc);//modbus address
+    crc16(mod_addr,&crc);//modbus address
     func = GETFROMBUF(rxBuf);
     if(func!=0x03 && func!=0x10)  //func code wrong!!
     {
@@ -246,7 +244,7 @@ void parse(void)
         }
         //answer 0x03
         txBuf.tail = 0;
-        PUTINTOBUF(txBuf,MODBUSADDR);   //modbus addr
+        PUTINTOBUF(txBuf,mod_addr);   //modbus addr
         PUTINTOBUF(txBuf,0x03);         //code 
         PUTINTOBUF(txBuf,rxBuf.buf[4]);
         //(uint8_t)((length>>8)&0xff));  //length

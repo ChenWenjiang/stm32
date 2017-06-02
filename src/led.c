@@ -146,8 +146,10 @@ void inputInit(void)
     gMap[RST].loc = GPIO_Pin_15;
     gMap[RST].ledloc = RST;
 
-    gMap[TEST].addr = GPIOB;
-    gMap[TEST].loc = GPIO_Pin_3;
+    //gMap[TEST].addr = GPIOB;
+    //gMap[TEST].loc = GPIO_Pin_3;
+    gMap[TEST].addr = GPIOC;
+    gMap[TEST].loc = GPIO_Pin_7;
     gMap[TEST].ledloc = TEST;
 
     gMap[MEM].addr = GPIOB;
@@ -184,321 +186,258 @@ void inputInit(void)
 
 }
 uint32_t memColor = 0;
+uint32_t testColor = 0;
 void setState(void)
 {
-    static uint8_t mem = 0;
-    static uint8_t mem_cnt = 0;
+  static uint8_t mem = 0;
+  static uint8_t mem_cnt = 0;
 
-    uint32_t inputFlag = gInputFlag;
-    uint32_t inputReleaseFlag = gInputReleaseFlag;
-    uint32_t inputDetected = inputFlag & inputReleaseFlag;
+  uint32_t inputFlag = gInputFlag;
+  uint32_t inputReleaseFlag = gInputReleaseFlag;
+  uint32_t inputDetected = inputFlag & inputReleaseFlag;
 
-    uint16_t buttonInputFlag = gButtonInputFlag;
-    uint16_t buttonReleaseFlag = gButtonReleaseFlag;
-    uint16_t buttonDetected = buttonInputFlag & buttonReleaseFlag;
+  uint16_t buttonInputFlag = gButtonInputFlag;
+  uint16_t buttonReleaseFlag = gButtonReleaseFlag;
+  uint16_t buttonDetected = buttonInputFlag & buttonReleaseFlag;
 
-    uint8_t doubleButtonFlag = gDoubleButtonFlag;
-    uint8_t doubleButtonReleaseFlag = gDoubleButtonReleaseFlag;
-    uint8_t doubleButtonDetected = doubleButtonFlag & doubleButtonReleaseFlag;
-    if(inputFlag){  //alarm
-        if((gState==SACK)||(gState==SALARM)){
-            gLight |= inputFlag;
-            gTwink |= inputFlag;
-        }else{
-            gLight = inputFlag;
-            gTwink = inputFlag;
-        }
-        gState = SALARM;
-        if(inputDetected){
-            int i = 0;
-            for(;i<32;i++){
-                if(inputDetected & (1<<i)){
-                    if(gColor & (1<<i))
-                        gHistory[gHistoryPointer] = i+32;
-                    else
-                        gHistory[gHistoryPointer] = i;
-                    gHistoryPointer = (gHistoryPointer+1)%256;
-                    if(gHistoryNum<256)
-                        gHistoryNum++;
-                }
-            }
-            eeprom_store_history();
-            gInputReleaseFlag = 0;
-            gInputFlag = 0;
-        }
-        regs[73].val = 0;
-        regs[74].val = 0;
-        regs[75].val = 0;
-    }else if((buttonDetected & 0x0102) || regs[74].val){  //rst
-        int i = 0;
-        gState = SNORMAL;
-        gLight = 0;
-        gTwink = 0;
-        gButtonInputFlag =0;//&=(~buttonDetected);
-        gButtonReleaseFlag =0;//&=(~buttonDetected);
-        gDoubleButtonReleaseFlag = 0;
-        gDoubleButtonFlag = 0;
-        for(i=0;i<34;i++){
-            regs[5+i].val = 0;
-            regs[39+i].val = 0;
-        }
-        regs[73].val = 0;
-        regs[74].val = 0;
-        regs[75].val = 0;
-        regs[3].val = 0;
-        regs[4].val = 0;
-        soundAlarmClose();
-        soundPreAlarmClose();
-    }else if((gState == SALARM)
-            &&((buttonDetected & 0x0081)||(regs[73].val))){  //ack
-        int i = 0;
-        gState = SACK;
-        gTwink = 0;
-        gButtonInputFlag =0;//&=(~buttonDetected);
-        gButtonReleaseFlag =0;//&=(~buttonDetected);
-        for(i=0;i<34;i++){
-            regs[5+i].val = 0;
-            regs[39+i].val = 0;
-        }
-        regs[73].val = 0;
-        regs[74].val = 0;
-        regs[75].val = 0;
-        regs[3].val = 0;
-        regs[4].val = 0;
-        soundAlarmClose();
-        soundPreAlarmClose();
-    }else if(gState == SNORMAL){
-        if(doubleButtonDetected & 1){//RST MEM
-            gLight = 0;
-            gTwink = 0;
-            eeprom_clear_history();
-            gDoubleButtonFlag &=0xfe;
-            gDoubleButtonReleaseFlag &= 0xfe;
-            gButtonReleaseFlag &=(~buttonDetected);
-            gButtonInputFlag &=(~buttonDetected);
-        }else if(doubleButtonDetected & 2){  //ENT MOV
-            gState = SSET;
-            gLight = 1;
-            gTwink = 1;
-            gDoubleButtonReleaseFlag &=0xfd;
-            gDoubleButtonFlag &= 0xfd;
-            gButtonInputFlag &= (~buttonDetected);
-            gButtonReleaseFlag &= (~buttonDetected);
-        }else if((buttonDetected & 0x0204)||(regs[75].val)){ //test
-            gState = STEST;
-            gLight = 0xffffffff;
-            gTwink = 0xffffffff;
-            gButtonReleaseFlag &= (~buttonDetected);
-            gButtonInputFlag &= (~buttonDetected);
-            regs[73].val = 0;
-            regs[74].val = 0;
-            regs[75].val = 0;
-        }else if(buttonDetected & 0x0408){ //mem
-            gState = SMEM;
-            if(gHistoryNum!=0){
-                mem_cnt = 1;
-                if(gHistoryPointer!=0)
-                    mem = gHistoryPointer-1;
-                else
-                    mem = 255;
-            }
-            if(gHistoryNum!=0){
-                gLight = 1<<(gHistory[mem]&0x1f);
-                gTwink = gLight;
-                memColor |= ((gHistory[mem]&0x20)?gLight:0);
-                if(mem_cnt==gHistoryNum){
-                    mem_cnt = 1;
-                    mem = gHistoryPointer-1;
-                }else{
-                    mem_cnt++;
-                    mem--;
-                }
-            }
-            gButtonInputFlag &= (~buttonDetected);
-            gButtonReleaseFlag &= (~buttonDetected);
-        }else if(buttonDetected){
-            gButtonInputFlag &= (~buttonDetected);
-            gButtonReleaseFlag &= (~buttonDetected);
-        }
-    }else if(gState ==SMEM){
-        if(buttonDetected & 0x0408){ //mem
-            if(gHistoryNum!=0){
-                gLight = 1<<(gHistory[mem]&0x1f);
-                gTwink = gLight;
-                memColor |= ((gHistory[mem]&0x20)?gLight:0);
-                if(mem_cnt==gHistoryNum){
-                    mem_cnt = 1;
-                    mem = gHistoryPointer-1;
-                }else{
-                    mem_cnt++;
-                    mem--;
-                }
-            }
-            gButtonInputFlag &= (~buttonDetected);
-            gButtonReleaseFlag &= (~buttonDetected);
-        }
-    }else if(gState==SSET){
-        if(buttonDetected & 0x10)//MOV
-        {
-            if(gLight==0x80000000)
-                gLight = 1;
-            else
-                gLight <<=1;
-            gTwink = gLight;
-            gButtonReleaseFlag &= (~buttonDetected);
-            gButtonInputFlag &= (~buttonDetected);
-        }else if(buttonDetected & 0x20)//ADD
-        {
-            if(gColor & gLight)
-                gColor &= (~gLight);
-            else
-                gColor |= gLight;
-             gButtonReleaseFlag &= (~buttonDetected);
-             gButtonInputFlag &= (~buttonDetected);
-
-        }
-        else if(buttonDetected & 0x40)//ENT
-        {
-            gState = SNORMAL;
-            gLight = 0;
-            gTwink = 0;
-            eeprom_store_color();
-            gButtonReleaseFlag &= (~buttonDetected);
-            gButtonInputFlag &= (~buttonDetected);
-        }else if(buttonDetected){
-            gButtonReleaseFlag &= (~buttonDetected);
-            gButtonInputFlag &= (~buttonDetected);
-        }
+  uint8_t doubleButtonFlag = gDoubleButtonFlag;
+  uint8_t doubleButtonReleaseFlag = gDoubleButtonReleaseFlag;
+  uint8_t doubleButtonDetected = doubleButtonFlag & doubleButtonReleaseFlag;
+  static uint32_t colorBackup = 0;
+  static uint8_t colorChanged = 0;
+  if(inputFlag){  //alarm
+    if(colorChanged){
+      gColor = colorBackup;
+      colorChanged = 0;
     }
-}
-/*
-   void ledInit(void)
-   {
-   uint8_t i = 0;
-
-   gLight = 0;
-   gTwink = 0;
-//TODO read from eeprom to set color
-gColor = loadLedColor();
-}
-*/
-/*
-   STATUS setState(void)
-   {
-   uint8_t i = 0;*/
-/*
-   for(i=0;i<ALARMNUM;i++)
-   {
-   if(gInputFlag[i])
-   gState = SALARM;
-   return OK;
-   }*/
-/*    if(regs[5].val)
-      {
-      gState = SALARM;
-      return OK;
+    if((gState==SACK)||(gState==SALARM)){
+      gLight |= inputFlag;
+      gTwink |= inputFlag;
+    }else{
+      gLight = inputFlag;
+      gTwink = inputFlag;
+    }
+    gState = SALARM;
+    if(inputDetected){
+      int i = 0;
+      for(;i<32;i++){
+        if(inputDetected & (1<<i)){
+          if(gColor & (1<<i))
+            gHistory[gHistoryPointer] = i+32;
+          else
+            gHistory[gHistoryPointer] = i;
+          gHistoryPointer = (gHistoryPointer+1)%256;
+          if(gHistoryNum<256)
+            gHistoryNum++;
+        }
       }
-
-      if(gState==SALARM)
-      {
-      if(gButtonInputFlag & 1)//ACK
-      {
-      gState = SACK;
-      return OK;
-      }
-      }
-      else
-      {
-      if(gButtonInputFlag & 0x0A )//RST MEM
-      {
-      clearMem();
-      }
-      else if(gButtonInputFlag & 0x50) //MOV ENT
-      {
+      eeprom_store_history();
+      gInputReleaseFlag = 0;
+      gInputFlag = 0;
+    }
+    regs[73].val = 0;
+    regs[74].val = 0;
+    regs[75].val = 0;
+  }else if((buttonDetected & 0x0102) || regs[74].val){  //rst
+    int i = 0;
+    if(colorChanged){
+      gColor = colorBackup;
+      colorChanged = 0;
+    }
+    //if(doubleButtonDetected & 1)
+    //  goto clearmem;
+    //else if(doubleButtonFlag &1)
+    //  return ;
+    gState = SNORMAL;
+    gLight = 0;
+    gTwink = 0;
+    gButtonInputFlag =0;//&=(~buttonDetected);
+    gButtonReleaseFlag =0;//&=(~buttonDetected);
+    gDoubleButtonReleaseFlag = 0;
+    gDoubleButtonFlag = 0;
+    for(i=0;i<34;i++){
+      regs[5+i].val = 0;
+      regs[39+i].val = 0;
+    }
+    regs[73].val = 0;
+    regs[74].val = 0;
+    regs[75].val = 0;
+    regs[3].val = 0;
+    regs[4].val = 0;
+    soundAlarmClose();
+    soundPreAlarmClose();
+  }else if((gState == SALARM)
+      &&((buttonDetected & 0x0081)||(regs[73].val))){  //ack
+    int i = 0;
+    gState = SACK;
+    gTwink = 0;
+    gButtonInputFlag =0;//&=(~buttonDetected);
+    gButtonReleaseFlag =0;//&=(~buttonDetected);
+    for(i=0;i<34;i++){
+      regs[5+i].val = 0;
+      regs[39+i].val = 0;
+    }
+    regs[73].val = 0;
+    regs[74].val = 0;
+    regs[75].val = 0;
+    regs[3].val = 0;
+    regs[4].val = 0;
+    soundAlarmClose();
+    soundPreAlarmClose();
+  }else if(gState == SNORMAL){
+    if(doubleButtonDetected & 1){//RST MEM
+      gLight = 1;
+      gTwink = 1;
+      eeprom_clear_history();
+      gLight = 3;
+      gTwink = 3;
+      gDoubleButtonFlag &=0xfe;
+      gDoubleButtonReleaseFlag &= 0xfe;
+      gButtonReleaseFlag &=(~buttonDetected);
+      //  gButtonInputFlag &=(~buttonDetected);
+      gButtonInputFlag &=(~(1<<(RST-ALARMNUM)));
+      gButtonInputFlag &=(~(1<<(MEM-ALARMNUM)));
+      gButtonInputFlag =0;//&=(~buttonDetected);
+      gButtonReleaseFlag =0;//&=(~buttonDetected);
+      gDoubleButtonReleaseFlag = 0;
+      gDoubleButtonFlag = 0;
+    }else if(doubleButtonDetected & 2){  //ENT MOV
       gState = SSET;
-      gSetCnt=0;
-      }
-      else if(gButtonInputFlag & 2)//RST
-      {
-      gState = SNORMAL;
-      }
-      else if(gButtonInputFlag & 4)//TEST
-      {
+      gLight = 1;
+      gTwink = 1;
+      gDoubleButtonReleaseFlag &=0xfd;
+      gDoubleButtonFlag &= 0xfd;
+      //gButtonInputFlag &= (~buttonDetected);
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~(1<<(ENT-ALARMNUM)));
+      gButtonInputFlag &= (~(1<<(MOV-ALARMNUM)));
+    }else if((buttonDetected & 0x0204)||(regs[75].val)){ //test
+      gTestCnt = 0;
       gState = STEST;
+      testColor = 0;
+
+      switch(gInputNumber){
+        case 12:
+          gLight = 0x00000fff;
+          break;
+        case 16:
+          gLight = 0x0000ffff;
+          break;
+        case 22:
+          gLight = 0x003fffff;
+          break;
+        case 24:
+          gLight = 0x00ffffff;
+          break;
+        default:
+          gLight = 0xffffffff;
       }
-      else if(gButtonInputFlag & 8)//MEM
-      {
+      gTwink = gLight;
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~buttonDetected);
+      regs[73].val = 0;
+      regs[74].val = 0;
+      regs[75].val = 0;
+    }else if(buttonDetected & 0x0408){ //mem
       gState = SMEM;
+      if(gHistoryNum!=0){
+        mem_cnt = 1;//gHistoryNum;
+        //查找数组中的第一个历史记录
+        if(gHistoryPointer!=0)
+          mem = gHistoryPointer-1;
+        else
+          mem = 255;
+  //    }
+  //    if(gHistoryNum!=0){
+        //设置灯位置和颜色
+        gLight = 1<<(gHistory[mem]&0x1f);
+        gTwink = gLight;
+        memColor = ((gHistory[mem]&0x20)?gLight:0);
+        //检查是否回忆到最后一个历史记录
+        if(mem_cnt==gHistoryNum){
+          mem_cnt = 1;
+          mem = gHistoryPointer-1;
+        }else{
+          mem_cnt++;
+          mem--;
+        }
       }
-      else if(gButtonInputFlag & 0x10)//MOV
-      {
-      if(gState == SSET)
-      {
-      gSetCnt++;
-      }
-      }
-      else if(gButtonInputFlag & 0x20)//ADD
-      {
-      if(gState==SSET)
-      {
-      if(gColor & (1<<gSetCnt))
-      gColor &= (~(1<<gSetCnt));
-      else
-      gColor |= (1<<gSetCnt);
-      }
-      }
-      else if(gButtonInputFlag & 0x40)//ENT
-      {
-      if(gState==SSET)
-      {
-      gState = SNORMAL;
-      storeLedColor();
-      }
-      }
-      }
-      }
-      STATUS setLed(void)
-      {
-      uint8_t i=0;
-      switch(gState)
-      {
-      case SNORMAL:
-      gLight = 0;
-gTwink = 0;
-break;
-case STEST:
-gLight = 0xffffffff;
-gTwink = 0xffffffff;
-break;
-case SACK:
-gLight |=gTwink;
-gTwink = 0;
-break;
-case SALARM:
-for(i=0;i<ALARMNUM;i++)
-{
-    if(gInputFlag[i] && (gTwink & (1<<gInput[i].ledloc)))
-    {
-        gTwink |= (1<<gInput[i].ledloc);
-        storeAlarmHistory(i);
+      gButtonInputFlag &= (~buttonDetected);
+      gButtonReleaseFlag &= (~buttonDetected);
+    }else if(buttonDetected){
+      gButtonInputFlag &= (~buttonDetected);
+      gButtonReleaseFlag &= (~buttonDetected);
     }
+  }else if(gState ==SMEM){
+    if(buttonDetected & 0x0408){ //mem
+      if(gHistoryNum!=0){
+        gLight = 1<<(gHistory[mem]&0x1f);
+        gTwink = gLight;
+        memColor = ((gHistory[mem]&0x20)?gLight:0);
+        if(mem_cnt==gHistoryNum){
+          mem_cnt = 1;
+          mem = gHistoryPointer-1;
+        }else{
+          mem_cnt++;
+          mem--;
+        }
+      }
+      gButtonInputFlag &= (~buttonDetected);
+      gButtonReleaseFlag &= (~buttonDetected);
+    }
+  }else if(gState==STEST){
+    if((buttonDetected & 0x0204)||(regs[75].val)){ //test
+      gTestCnt = (gTestCnt+1)%3;
+      if(gTestCnt==1)
+        testColor= 0xffffffff;
+      else if(gTestCnt==0)
+        testColor = 0;
+      else if(gTestCnt==2)
+        testColor = gColor;
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~buttonDetected);
+      regs[73].val = 0;
+      regs[74].val = 0;
+      regs[75].val = 0;
+    }
+  }else if(gState==SSET){
+    if(buttonDetected & 0x10)//MOV
+    {
+      if(gLight==(1<<(gInputNumber-1)))
+        gLight = 1;
+      else
+        gLight <<=1;
+      gTwink = gLight;
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~buttonDetected);
+    }else if(buttonDetected & 0x20)//ADD
+    {
+      colorBackup = gColor;
+      colorChanged = 1;
+      if(gColor & gLight)
+        gColor &= (~gLight);
+      else
+        gColor |= gLight;
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~buttonDetected);
+    }
+    else if(buttonDetected & 0x40)//ENT
+    {
+      gState = SNORMAL;
+      gLight = 0;
+      gTwink = 0;
+      eeprom_store_color();
+      colorChanged = 0;
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~buttonDetected);
+    }else if(buttonDetected){
+      gButtonReleaseFlag &= (~buttonDetected);
+      gButtonInputFlag &= (~buttonDetected);
+    }else if(doubleButtonDetected)
+    {
+      gDoubleButtonFlag &= (~doubleButtonDetected);
+      gDoubleButtonReleaseFlag &= (~doubleButtonDetected);
+    }
+  }
+  return ;
 }
-gLight |= gTwink;
-break;
-case SMEM:
-//TODO global variable
-i = loadAlarmHistory(gPushCnt);
-gTwink = 1<<i;
-gLight = 1<<i;
-break;
-case SSET:
-gTwink = (1<<gInput[gSetCnt].ledloc);
-gLight = gTwink;
-break;
-default:
-gState = SNORMAL;
-return ERROR;
-}
-return OK;
-}
-*/

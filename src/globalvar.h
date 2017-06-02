@@ -5,6 +5,7 @@
 #include "types.h"
 #include "led.h"
 
+extern uint8_t gInputNumber;
 extern modreg_t regs[76];
 extern STATE gState ;
 
@@ -23,7 +24,7 @@ extern uint32_t gInputReleaseFlag;
 extern volatile  uint32_t gLight;    //0:dark 1:light
 extern volatile uint32_t gTwink;    //0:stable 1:twink
 extern volatile uint32_t gColor;    //0:yellow 1:red
-
+extern volatile uint8_t gTestCnt;
 extern uint8_t gPwr; //
 //
 extern int gRxCnt;

@@ -34,40 +34,44 @@ void UART4_IRQHandler(void)
 //    static int i = 0;
     if(RS485_CAN_NOT_RX){
         USART_ClearITPendingBit(UART4,USART_IT_RXNE);
-        goto haha;
+        return;
     }
-    if(USART_GetITStatus(UART4,USART_IT_IDLE)!=RESET){
-        USART_ClearITPendingBit(UART4,USART_IT_IDLE);
-    }
-    if(USART_GetITStatus(UART4,USART_IT_RXNE)!=RESET)
-    {
-        PUTINTOBUF(rxBuf,USART_ReceiveData(UART4));    
-   //     uart4_data[i++] = USART_ReceiveData(UART4);
-        //if(i==10){
-        //    i = 0;
-        if(okToParse()){
-            TIM_Cmd(TIM2,DISABLE);
-            parse();
-            print(txBuf.buf,txBuf.tail-txBuf.head);
-            CLEARBUF(txBuf);
-        }else{
-            timer2Cnt = 0;
-            if(rxBuf.tail==1)
-                TIM_Cmd(TIM2,ENABLE);
-        }
-    //    if(okToParse()){
-    //        print(txBuf.buf,txBuf.tail-txBuf.head);
-    //        CLEARBUF(txBuf);
-    //    }
-//            RS485_TX_ENABLE;
-        USART_ClearITPendingBit(UART4,USART_IT_RXNE);
-        //buf[ptr++]=USART_ReceiveData(USART3);
-    }
-haha:   
-    if(USART_GetFlagStatus(UART4,USART_FLAG_ORE)==SET)
-    {
+    if(USART_GetFlagStatus(UART4,USART_FLAG_ORE)==SET){
         USART_ClearFlag(UART4,USART_FLAG_ORE);
         USART_ReceiveData(UART4);
+    }
+    if(USART_GetFlagStatus(UART4,USART_FLAG_NE)!=RESET){
+      USART_ClearFlag(UART4,USART_FLAG_NE);
+    }
+    if(USART_GetFlagStatus(UART4,USART_FLAG_FE)!=RESET){
+      USART_ClearFlag(UART4,USART_FLAG_FE);
+    }
+    if(USART_GetFlagStatus(UART4,USART_FLAG_IDLE)!=RESET){
+      USART_ClearFlag(UART4,USART_FLAG_IDLE);
+    }
+    
+    if(USART_GetFlagStatus(UART4,USART_FLAG_PE)!=RESET){
+/*      CLEARBUF(txBuf);
+      PUTINTOBUF(txBuf,0xaa);
+      PUTINTOBUF(txBuf,USART_ReceiveData(UART4));
+      print(txBuf.buf,txBuf.tail-txBuf.head);
+      CLEARBUF(txBuf);*/
+      USART_ClearFlag(UART4,USART_FLAG_PE);
+    }
+    if(USART_GetITStatus(UART4,USART_IT_RXNE)!=RESET){
+      PUTINTOBUF(rxBuf,USART_ReceiveData(UART4));    
+      if(okToParse()){
+        TIM_Cmd(TIM2,DISABLE);
+        parse();
+        if((txBuf.buf[0]!=0))
+          print(txBuf.buf,txBuf.tail-txBuf.head);
+        CLEARBUF(txBuf);
+      }else{
+        timer2Cnt = 0;
+        if(rxBuf.tail==1)
+          TIM_Cmd(TIM2,ENABLE);
+      }
+      USART_ClearITPendingBit(UART4,USART_IT_RXNE);
     }
 }
 unsigned char buf[128];
@@ -90,19 +94,27 @@ void USART3_IRQHandler(void)
 //1ms定时器，如果连续采样低电平50次，
 //则认为已经按下按键。
 uint8_t inputLock = 0;
-//void TIM3_IRQHandler(void)  
-void timer3(void)
+//这个宏定义用来定义采样到低电平的次数
+#define CNTTIMES 25 
+//两秒清除所有的mem
+#define CLRMEMCNT 1000   
+void TIM3_IRQHandler(void)  
+//void timer3(void)
 {  
-    const uint8_t CNTTIMES = 20;
+    //const uint8_t CNTTIMES = 50;
     static uint8_t inCnt[INPUTNUM] = {0};
    // static uint8_t releaseCnt[INPUTNUM] = {0};
     static uint16_t clearMemCnt = 0;
     static uint16_t setCnt = 0;
     uint8_t i = 0;
-//    if(TIM_GetITStatus(TIM3,TIM_IT_Update)!=RESET){
+    //如果产生了定时器update中断
+    if(TIM_GetITStatus(TIM3,TIM_IT_Update)!=RESET){
  //input alarm check
         inputLock = 1;
-        for(i=0;i<ALARMNUM;i++)
+        //检测ALARMNUM个报警输入信号,如果检测到有报警信号，则
+        //该报警信号对应的计数值自增。不然自减
+       // for(i=0;i<ALARMNUM;i++)
+        for(i=0;i<gInputNumber;i++)
         {
             if(GPIO_ReadInputDataBit(gMap[i].addr,
                         gMap[i].loc) ==Bit_RESET){
@@ -112,6 +124,8 @@ void timer3(void)
                 if(inCnt[i]>0)
                     inCnt[i]--;
             }
+            //如果计数值大于CNTTIMES-5，则认为有真正的报警输入
+            //并设置报警信号对应的“寄存器”（这些寄存器是对于MODBUS来说的）
             if(inCnt[i]>=CNTTIMES-5)
             {
                 regs[i+7].val = 1;
@@ -123,12 +137,16 @@ void timer3(void)
                     regs[6].val |= (1<<i);
                     regs[40].val = regs[6].val;
                 }
+                //对应的输入标志置位
+                //对应的释放标志清除
                 gInputFlag |= (1<<i);
                 gInputReleaseFlag &=(~(1<<i));
+                //如果有报警信号，需要产生报警声音
                 if(gInputFlag & gColor){
                     regs[3].val = 1;
                     soundAlarm();
                 }
+                //如果有预报警信号，需要产生预报警声音
                 if(gInputFlag & (~gColor)){
                     regs[4].val = 1;
                     soundPreAlarm();
@@ -140,21 +158,23 @@ void timer3(void)
         //        if(gHistoryNum<256)
         //            gHistoryNum++;
             }
-            else
+            else //if(inCnt[i]>=CNTTIMES-5) 如果低于阈值，则清除相应的寄存器值
             {
                 regs[i+6].val = 0;
                 regs[5].val &= (~(1<<i));
+                //如果计数值达到0，则设置释放标志位
                 if(inCnt[i]==0)
                     gInputReleaseFlag |= (1<<i);
                 else
                     gInputReleaseFlag &=(~(1<<i));
             }
         }
+        //regs[3]判断是否有报警信号
         if(regs[5].val!=0)
             regs[3].val = 1;
         else
             regs[3].val = 0;
-//button input
+//button input，按键输入，与报警输入类似
         for(i=ALARMNUM;i<INPUTNUM;i++)
         {
             if(GPIO_ReadInputDataBit(gMap[i].addr,gMap[i].loc)==Bit_RESET){
@@ -164,56 +184,80 @@ void timer3(void)
                 if(inCnt[i]>0)
                     inCnt[i]--;
             }
-            if(inCnt[i]>=CNTTIMES-5){
+            if(inCnt[i]>=CNTTIMES-5){ //查过阈值，则输入标志位置1
                 gButtonInputFlag |= (1<<(i-ALARMNUM));
-                gButtonReleaseFlag &= (~(1<<(i-ALARMNUM)));
             }
-            else if(inCnt[i]>0)
+            if(inCnt[i]>0)
                 gButtonReleaseFlag &= (~(1<<(i-ALARMNUM)));
-            else
+            else{ //计数等于0，则释放标志位置1
                 gButtonReleaseFlag |= (1<<(i-ALARMNUM));
- 
+            }
         }
+        
+        //判断是否有两个按键同时按下，用来清除所有的历史记录
         if(((gButtonInputFlag&0x0a)==0x0a)||
                 ((gButtonInputFlag&0x0300)==0x0300)){
-            if(clearMemCnt <400)
+            if(clearMemCnt < CLRMEMCNT) 
                 clearMemCnt++;
         }
-        else if(clearMemCnt>20)
-            clearMemCnt-=20;
+        else if(clearMemCnt>20)  
+            clearMemCnt--;
         else
             clearMemCnt = 0;
-
+//两个按键同时按下，设置灯的颜色
         if((gButtonInputFlag&0x0050)==0x0050){
-            if(setCnt <40)
+            if(setCnt <CNTTIMES)
                 setCnt++;
         }
-        else if(setCnt>5)
-            setCnt-=5;
-        else
-            setCnt = 0;
+        else if(setCnt>0)
+            setCnt--;
 //ent mov
-        if(setCnt>35){
+        if(setCnt>CNTTIMES-5){
             gDoubleButtonFlag |= 2;
+        }
+        //if((gDoubleButtonFlag&2)&&((gButtonReleaseFlag & 0x0050)==0x0050))
+        if((gDoubleButtonFlag&2)&&//((gButtonReleaseFlag & 0x0050)==0x0050))
+          (inCnt[ENT]==0) && (inCnt[MOV]==0)
+          )
+            gDoubleButtonReleaseFlag |=2;
+        else{
             gDoubleButtonReleaseFlag &=0xfd;
         }
-        else if(setCnt>0)
-            gDoubleButtonReleaseFlag &=0xfd;
-        else
-            gDoubleButtonReleaseFlag |=2;
-     
-          //  gDoubleButtonFlag &= 0xfd;
 //rst mem
-        if(clearMemCnt>300){
+        if(clearMemCnt>CLRMEMCNT-200){
             gDoubleButtonFlag |= 1;
-            gDoubleButtonReleaseFlag &=0xfe;
-        }else if(clearMemCnt>0)
-            gDoubleButtonReleaseFlag &=0xfe;
-        else
+        }
+  //      if((gDoubleButtonFlag & 1) 
+  //      && ((gButtonReleaseFlag & 0x050a)==0x050a))
+        if((gDoubleButtonFlag & 1) && 
+            (inCnt[RST]==0) && (inCnt[MEM]==0) && 
+            (inCnt[RST_IN]==0) && (inCnt[MEM_IN]==0))
+            // && ((gButtonReleaseFlag & 0x050a)==0x050a))
             gDoubleButtonReleaseFlag |= 1;
+        else{
+            gDoubleButtonReleaseFlag &=0xfe;
+        }
+        //ent mov
+        if((gDoubleButtonFlag & 2)&&(!(gDoubleButtonReleaseFlag & 2))){
+          gButtonReleaseFlag &= ~(1<<(ENT-ALARMNUM));
+          gButtonReleaseFlag &= ~(1<<(MOV-ALARMNUM));
+          gButtonInputFlag &= ~(1<<(ENT-ALARMNUM));
+          gButtonInputFlag &= ~(1<<(MOV-ALARMNUM));
+        }
+        //rst mem
+        if((gDoubleButtonFlag & 1) && (!(gDoubleButtonReleaseFlag & 1))){
+          gButtonReleaseFlag &= ~(1<<(RST-ALARMNUM));
+          gButtonReleaseFlag &= ~(1<<(MEM-ALARMNUM));
+          gButtonReleaseFlag &= ~(1<<(RST_IN-ALARMNUM));
+          gButtonReleaseFlag &= ~(1<<(MEM_IN-ALARMNUM));
+          gButtonInputFlag &= ~(1<<(RST-ALARMNUM));
+          gButtonInputFlag &= ~(1<<(MEM-ALARMNUM));
+          gButtonInputFlag &= ~(1<<(RST_IN-ALARMNUM));
+          gButtonInputFlag &= ~(1<<(MEM_IN-ALARMNUM));
+        }
         inputLock = 0;
-  //      TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-  //  }
+        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
+    }
 }
 
 //1s定时，芯片正在运行的指示灯，闪烁表示正在运行，不闪烁表示有问题，程序没有运行

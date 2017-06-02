@@ -23,12 +23,14 @@ uint8_t eeprom_store_history(void){
         if(err!=0)
             return err;
     }
-    gHistoryPointer_backup = gHistoryPointer;
     err = Single_Write(0xa2,0,gHistoryPointer);
     if(err!=0)
         return err;
     err = Write(0xa2,7,(uint8_t *)(&gHistoryNum),2);
-    return err;
+    if(err)
+      return err;
+    gHistoryPointer_backup = gHistoryPointer;
+    return 0;
 }
 
 uint8_t  eeprom_load(void){

@@ -9,6 +9,8 @@ STATE gState = SNORMAL;
 BUF rxBuf;
 BUF txBuf;
 
+uint8_t gInputNumber = 32;
+
 volatile uint16_t gButtonInputFlag = 0;
 volatile uint16_t gButtonReleaseFlag = 0;
 volatile uint8_t gDoubleButtonFlag = 0;
@@ -33,6 +35,7 @@ uint32_t gInputReleaseFlag;
 volatile uint32_t gLight = 0;    //0:dark 1:light
 volatile uint32_t gTwink = 0;    //0:stable 1:twink
 volatile uint32_t gColor = 0xffffffff;    //0:yellow 1:red
+volatile uint8_t gTestCnt = 0;
 
 uint8_t gPwr = 0; //
 
@@ -46,7 +49,7 @@ uint8_t gRS485Config = 0;//高4位为波特率,低4位为其他配置
 //ringbuf
 BUF ringBuf;
 //RTU time out
-int gTimeOut = 40000;
+int gTimeOut = 4000;
 #if defined(__cplusplus)||defined(c_plusplus)
 }
 #endif

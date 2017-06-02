@@ -3,63 +3,77 @@
 
 static void RS485_UART4_Config(void)
 {
+  uint32_t len = 11;
+  uint32_t baud = 9600;
     USART_Cmd(UART4,DISABLE);
 
     USART_InitTypeDef USART_InitStructure;
-//    switch(regs[1].val){
-//        case 0:
-//            USART_InitStructure.USART_BaudRate = 2400;
-//            break;
-//        case 1:
-//            USART_InitStructure.USART_BaudRate = 4800;
-//            break;
-//        case 2:
+    switch(regs[1].val){
+        case 0:
+            USART_InitStructure.USART_BaudRate = 2400;
+            break;
+        case 1:
+            USART_InitStructure.USART_BaudRate = 4800;
+            break;
+        case 2:
             USART_InitStructure.USART_BaudRate = 9600;
-//            break;
-//        case 3:
-//            USART_InitStructure.USART_BaudRate = 19200;
-//            break;
-//        case 4:
-//            USART_InitStructure.USART_BaudRate = 38400;
-//            break;
-//        default:
-//            USART_InitStructure.USART_BaudRate = 9600;
-//            gRS485Config = 0x20 |(gRS485Config & 0x0f);
-//            eeprom_store_rs485config();
-//    }
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-//    switch(regs[2].val){
-//        case 0:
-//            USART_InitStructure.USART_StopBits = USART_StopBits_1;
-//            USART_InitStructure.USART_Parity = USART_Parity_Even;
-//            break;
-//        case 1:
-//            USART_InitStructure.USART_StopBits = USART_StopBits_1;
-//            USART_InitStructure.USART_Parity = USART_Parity_Odd;
-//            break;
-//        case 2:
+            break;
+        case 3:
+            USART_InitStructure.USART_BaudRate = 19200;
+            break;
+        case 4:
+            USART_InitStructure.USART_BaudRate = 38400;
+            break;
+        default:
+            USART_InitStructure.USART_BaudRate = 9600;
+    //        gRS485Config = 0x20 |(gRS485Config & 0x0f);
+    //        eeprom_store_rs485config(gRS485Config);
+    }
+    baud = USART_InitStructure.USART_BaudRate;
+    switch(regs[2].val){
+        case 0:
+            USART_InitStructure.USART_StopBits = USART_StopBits_1;
+            USART_InitStructure.USART_Parity = USART_Parity_Even;
+            USART_InitStructure.USART_WordLength = USART_WordLength_9b;
+            len = 11;
+            break;
+        case 1:
+            USART_InitStructure.USART_StopBits = USART_StopBits_1;
+            USART_InitStructure.USART_Parity = USART_Parity_Odd;
+            USART_InitStructure.USART_WordLength = USART_WordLength_9b;
+            len = 11;
+            break;
+        case 2:
             USART_InitStructure.USART_StopBits = USART_StopBits_1;
             USART_InitStructure.USART_Parity = USART_Parity_No;
-//            break;
-//        case 3:
-//            USART_InitStructure.USART_StopBits = USART_StopBits_2;
-//            USART_InitStructure.USART_Parity = USART_Parity_No;
-//            break;
-//        default:
-//            USART_InitStructure.USART_StopBits = USART_StopBits_1;
-//            USART_InitStructure.USART_Parity = USART_Parity_Even;
-//            gRS485Config = gRS485Config & 0xf0;
-//            eeprom_store_rs485config();
-//    }
+            USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+            len = 10;
+            break;
+        case 3:
+            USART_InitStructure.USART_StopBits = USART_StopBits_2;
+            USART_InitStructure.USART_Parity = USART_Parity_No;
+            USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+            len = 11;
+            break;
+        default:
+            USART_InitStructure.USART_StopBits = USART_StopBits_1;
+            USART_InitStructure.USART_Parity = USART_Parity_Even;
+            USART_InitStructure.USART_WordLength = USART_WordLength_9b;
+            len = 11;
+    //        gRS485Config = gRS485Config & 0xf0;
+    //        eeprom_store_rs485config(gRS485Config);
+    }
     USART_InitStructure.USART_HardwareFlowControl = 
         USART_HardwareFlowControl_None;
     USART_InitStructure.USART_Mode = USART_Mode_Tx | 
         USART_Mode_Rx;
     USART_Init(UART4,&USART_InitStructure);
+    //USART_ITConfig(UART4,USART_IT_PE,ENABLE);
+    //USART_ITConfig(UART4,USART_IT_ERR,ENABLE);
     USART_ITConfig(UART4,USART_IT_RXNE,ENABLE);
     USART_ClearFlag(UART4,USART_FLAG_TC);
     USART_Cmd(UART4,ENABLE);
-
+    gTimeOut = 140000*len/baud;
 }
 static void RS485_RCC_Config(void){
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA|RCC_APB2Periph_GPIOC|
